@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "OpenClaw Mission Control",
+  title: "Xenler Mission Control",
   description: "Web dashboard for running and monitoring your OpenClaw AI agents.",
 };
 

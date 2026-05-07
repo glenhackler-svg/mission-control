@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar } from "lucide-react";
+import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar, CheckSquare, Mail } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/missions", label: "Missions", icon: ListTodo },
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
   { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/mail", label: "Mail", icon: Mail },
 ];
 
 export function Sidebar() {
@@ -26,7 +28,7 @@ export function Sidebar() {
         >
           O
         </div>
-        OpenClaw Mission Control
+        Xenler Mission Control
       </div>
       <nav className="flex flex-col gap-0.5">
         {NAV.map((item) => {

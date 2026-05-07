@@ -26,7 +26,7 @@ export default async function HomePage() {
 
   return (
     <div className="p-8 max-w-[1200px] mx-auto">
-      <h1 className="text-[32px] font-semibold tracking-[-0.02em] mb-2">Mission Control</h1>
+      <h1 className="text-[32px] font-semibold tracking-[-0.02em] mb-2">Xenler Mission Control</h1>
       <p className="text-[var(--ink-2)] mb-8">
         Every agent in your OpenClaw stack, at a glance.
       </p>
