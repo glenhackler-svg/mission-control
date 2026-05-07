@@ -78,11 +78,44 @@ psql postgresql://postgres:your_strong_password@localhost:5432/mission_control -
 
 ## STEP 3 — Clone the Repo
 
+The canonical Mission Control repo is:
+**https://github.com/glenhackler-svg/mission-control** (private)
+
+Since the repo is private, add a GitHub deploy key so the VPS can pull without a password.
+
+### 3a — Generate a deploy key on the VPS
+
 ```bash
-cd /home   # or /opt, wherever you want it
-git clone https://github.com/glenhackler-svg/openclaw-workspace.git   # or the mission-control repo directly
-# Or if using the mission-control repo:
-git clone https://github.com/sharbelxyz/openclaw-mission-control.git mission-control
+ssh-keygen -t ed25519 -C "mission-control-vps" -f ~/.ssh/mission_control_deploy -N ""
+cat ~/.ssh/mission_control_deploy.pub
+```
+
+Copy the output (starts with `ssh-ed25519 ...`).
+
+### 3b — Add the deploy key to GitHub
+
+1. Go to https://github.com/glenhackler-svg/mission-control/settings/keys
+2. Click **Add deploy key**
+3. Title: the VPS hostname (e.g. `ncg-vps`)
+4. Key: paste the public key
+5. Leave "Allow write access" unchecked
+6. Click **Add key**
+
+### 3c — Configure SSH to use the deploy key
+
+```bash
+cat >> ~/.ssh/config << 'EOF'
+Host github.com
+  IdentityFile ~/.ssh/mission_control_deploy
+  IdentitiesOnly yes
+EOF
+```
+
+### 3d — Clone
+
+```bash
+cd /opt
+git clone git@github.com:glenhackler-svg/mission-control.git mission-control
 cd mission-control
 npm install
 ```
@@ -277,4 +310,27 @@ AgentMail Developer plan ($20/month) supports up to 10 custom domains.
 
 ---
 
+---
+
+## UPDATING MISSION CONTROL
+
+When the codebase is updated, deploy to any VPS with:
+
+```bash
+cd /opt/mission-control
+git pull
+npm install
+npm run build
+pm2 restart mission-control
+```
+
+One-liner:
+
+```bash
+cd /opt/mission-control && git pull && npm install && npm run build && pm2 restart mission-control
+```
+
+---
+
 *Maintained by Glen Hackler — Xenler Consulting (xenlerconsulting.com)*
+*Repo: https://github.com/glenhackler-svg/mission-control*
