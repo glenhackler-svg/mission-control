@@ -34,8 +34,8 @@ export async function GET() {
     const events: CalendarEvent[] = items
       .filter((e) => e.status !== "cancelled")
       .map((e) => {
-        const startObj = (e.start || {}) as { dateTime?: string; date?: string };
-        const endObj   = (e.end   || {}) as { dateTime?: string; date?: string };
+        const startObj = (e.start || {}) as { dateTime?: string; date?: string; timeZone?: string };
+        const endObj   = (e.end   || {}) as { dateTime?: string; date?: string; timeZone?: string };
         const { iso: startIso, allDay } = parseDate(startObj);
         const { iso: endIso }           = parseDate(endObj);
 
