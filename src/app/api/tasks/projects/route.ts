@@ -13,20 +13,33 @@ export async function GET() {
     orderBy: { createdAt: "asc" },
     include: {
       tasks: {
-        select: { status: true },
+        select: {
+          status: true,
+          timeEntries: {
+            select: { durationSeconds: true },
+            where: { endedAt: { not: null } },
+          },
+        },
       },
     },
   });
 
-  const result = projects.map((p) => ({
-    id: p.id,
-    name: p.name,
-    color: p.color,
-    clientName: p.clientName,
-    notes: p.notes,
-    taskCount: p.tasks.length,
-    doneCount: p.tasks.filter((t) => t.status === "done").length,
-  }));
+  const result = projects.map((p) => {
+    const totalSeconds = p.tasks.reduce(
+      (sum, t) => sum + t.timeEntries.reduce((s, e) => s + (e.durationSeconds ?? 0), 0),
+      0
+    );
+    return {
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      clientName: p.clientName,
+      notes: p.notes,
+      taskCount: p.tasks.length,
+      doneCount: p.tasks.filter((t) => t.status === "done").length,
+      totalSeconds,
+    };
+  });
 
   return NextResponse.json({ projects: result });
 }

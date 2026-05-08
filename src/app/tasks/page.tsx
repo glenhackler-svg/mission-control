@@ -13,6 +13,7 @@ interface Project {
   notes: string | null;
   taskCount: number;
   doneCount: number;
+  totalSeconds: number;
 }
 
 interface TimeEntry {
@@ -66,6 +67,15 @@ function fmtDuration(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
+}
+
+function fmtProjectTime(seconds: number): string {
+  if (seconds <= 0) return "";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m > 0 ? m + "m" : ""}`.trim();
+  if (m > 0) return `${m}m`;
+  return "<1m";
 }
 
 function fmtDate(iso: string | null): string {
@@ -1064,6 +1074,14 @@ export default function TasksPage() {
                       {project.doneCount}/{project.taskCount}
                     </span>
                   </div>
+                  {project.totalSeconds > 0 && (
+                    <div className="flex items-center gap-1" style={{ paddingLeft: "18px" }}>
+                      <Clock className="w-2.5 h-2.5" style={{ color: "var(--ink-3)" }} />
+                      <span className="text-[10px]" style={{ color: "var(--ink-3)" }}>
+                        {fmtProjectTime(project.totalSeconds)}
+                      </span>
+                    </div>
+                  )}
                 </button>
               );
             })
@@ -1126,11 +1144,22 @@ export default function TasksPage() {
               <button
                 onClick={() => setShowAddTask(true)}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
-                style={{ background: "#10b981", color: "#000" }}
+                style={{ background: "#3b82f6", color: "#fff" }}
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Task
               </button>
+            )}
+            {selectedProject && (
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--panel)", border: "1px solid #10b981", color: "var(--ink-2)" }}
+              >
+                <Clock className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} />
+                {selectedProject.totalSeconds > 0
+                  ? fmtProjectTime(selectedProject.totalSeconds)
+                  : "0m"}
+              </div>
             )}
           </div>
         </div>
