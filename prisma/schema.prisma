@@ -88,6 +88,7 @@ model Task {
   assignee    String?
   completedAt DateTime?   @map("completed_at")
   asanaGid    String?     @map("asana_gid")
+  sortOrder   Int         @default(0) @map("sort_order")
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
   project     Project     @relation(fields: [projectId], references: [id])

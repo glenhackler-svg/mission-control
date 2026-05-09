@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const tasks = await prisma.task.findMany({
     where,
-    orderBy: [{ createdAt: "asc" }],
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
   return NextResponse.json({ tasks });

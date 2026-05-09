@@ -1,7 +1,22 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Plus, ChevronDown, ChevronRight, Clock, Play, Square, Check, Circle, Loader2, Pencil, X } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Clock, Play, Square, Check, Circle, Loader2, Pencil, X, Trash2, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +50,7 @@ interface Task {
   assignee: string | null;
   completedAt: string | null;
   createdAt: string;
+  sortOrder: number;
   timeEntries?: TimeEntry[];
 }
 
@@ -267,6 +283,9 @@ function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRow
   const [manualHours, setManualHours] = useState("");
   const [manualMins, setManualMins] = useState("");
   const [manualNote, setManualNote] = useState("");
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null);
+  const [editNote, setEditNote] = useState("");
+  const [editHours, setEditHours] = useState("");
   const [editingTask, setEditingTask] = useState(false);
   const [taskTitle, setTaskTitle] = useState(task.title);
   const [taskAssignee, setTaskAssignee] = useState(task.assignee ?? "");
@@ -640,28 +659,114 @@ function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRow
                 {detail?.timeEntries && detail.timeEntries.length > 0 && (
                   <div className="flex flex-col gap-1 mt-1">
                     {detail.timeEntries.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center gap-2 text-[11px] px-2 py-1 rounded"
-                        style={{ background: "var(--bg)", color: "var(--ink-3)" }}
-                      >
-                        <Clock className="w-3 h-3 flex-none" />
-                        {entry.endedAt ? (
-                          <>
-                            <span className="font-medium" style={{ color: "var(--ink-2)" }}>
-                              {fmtDuration(entry.durationSeconds ?? 0)}
-                            </span>
-                            <span>·</span>
-                            <span>{fmtDateTime(entry.startedAt)}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span style={{ color: "#f59e0b" }}>Running</span>
-                            <span>·</span>
-                            <span>Started {fmtDateTime(entry.startedAt)}</span>
-                          </>
+                      <div key={entry.id}>
+                        <div
+                          className="flex items-center gap-2 text-[11px] px-2 py-1 rounded group"
+                          style={{ background: "var(--bg)", color: "var(--ink-3)" }}
+                        >
+                          <Clock className="w-3 h-3 flex-none" />
+                          {entry.endedAt ? (
+                            <>
+                              <span className="font-medium" style={{ color: "var(--ink-2)" }}>
+                                {fmtDuration(entry.durationSeconds ?? 0)}
+                              </span>
+                              <span>·</span>
+                              <span>{fmtDateTime(entry.startedAt)}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ color: "#f59e0b" }}>Running</span>
+                              <span>·</span>
+                              <span>Started {fmtDateTime(entry.startedAt)}</span>
+                            </>
+                          )}
+                          {entry.note && <span>· {entry.note}</span>}
+                          <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setEditingEntryId(entry.id);
+                                setEditNote(entry.note ?? "");
+                                setEditHours(entry.durationSeconds ? String(Math.round(entry.durationSeconds / 36) / 100) : "");
+                              }}
+                              style={{ color: "var(--ink-2)", background: "none", border: "none", cursor: "pointer", padding: "2px" }}
+                              title="Edit entry"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm("Delete this time entry?")) return;
+                                await fetch(`/api/tasks/${task.id}/time-entries/${entry.id}`, { method: "DELETE" });
+                                await fetchDetail();
+                              }}
+                              style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer", padding: "2px" }}
+                              title="Delete entry"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        {/* Inline edit form */}
+                        {editingEntryId === entry.id && (
+                          <div
+                            className="flex flex-col gap-2 px-2 py-2 rounded mt-1 mb-1"
+                            style={{ background: "var(--panel)", border: "1px solid var(--line)" }}
+                          >
+                            <div className="flex gap-2">
+                              <div className="flex flex-col gap-1 flex-1">
+                                <label className="text-[10px]" style={{ color: "var(--ink-3)" }}>Hours</label>
+                                <input
+                                  type="number"
+                                  step="0.25"
+                                  min="0"
+                                  value={editHours}
+                                  onChange={(e) => setEditHours(e.target.value)}
+                                  className="text-[11px] px-2 py-1 rounded"
+                                  style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-1)", width: "80px" }}
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1 flex-1">
+                                <label className="text-[10px]" style={{ color: "var(--ink-3)" }}>Note</label>
+                                <input
+                                  type="text"
+                                  value={editNote}
+                                  onChange={(e) => setEditNote(e.target.value)}
+                                  placeholder="Add a note..."
+                                  className="text-[11px] px-2 py-1 rounded"
+                                  style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-1)", flex: 1 }}
+                                />
+                              </div>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => setEditingEntryId(null)}
+                                className="text-[11px] px-2 py-1 rounded"
+                                style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-2)", cursor: "pointer" }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const hrs = parseFloat(editHours);
+                                  await fetch(`/api/tasks/${task.id}/time-entries/${entry.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      ...(editHours !== "" && !isNaN(hrs) && { duration_seconds: Math.round(hrs * 3600) }),
+                                      note: editNote || null,
+                                    }),
+                                  });
+                                  setEditingEntryId(null);
+                                  await fetchDetail();
+                                }}
+                                className="text-[11px] px-2 py-1 rounded"
+                                style={{ background: "var(--accent, #6366f1)", border: "none", color: "#fff", cursor: "pointer" }}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
                         )}
-                        {entry.note && <span>· {entry.note}</span>}
                       </div>
                     ))}
                   </div>
@@ -678,6 +783,44 @@ function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRow
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Sortable Task Row wrapper ──────────────────────────────────────────────
+
+function SortableTaskRow(props: TaskRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.task.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        position: "relative",
+      }}
+    >
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        style={{
+          position: "absolute",
+          left: -20,
+          top: 12,
+          cursor: "grab",
+          color: "var(--ink-3)",
+          opacity: 0,
+          transition: "opacity 0.15s",
+          zIndex: 10,
+        }}
+        className="drag-handle"
+        title="Drag to reorder"
+      >
+        <GripVertical style={{ width: 14, height: 14 }} />
+      </div>
+      <TaskRow {...props} />
     </div>
   );
 }
@@ -987,16 +1130,38 @@ export default function TasksPage() {
       }
     : undefined;
 
-  const filteredTasks = tasks.filter((t) => {
-    if (filterStatus === "all") return true;
-    return t.status === filterStatus;
-  });
+  // Active = todo + in_progress, sorted by user-defined order
+  const activeTasks = tasks
+    .filter((t) => t.status !== "done")
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 
-  // Sort: todo first, in_progress second, done last
-  const sortedTasks = [...filteredTasks].sort((a, b) => {
-    const order = { todo: 0, in_progress: 1, done: 2 };
-    return (order[a.status as keyof typeof order] ?? 3) - (order[b.status as keyof typeof order] ?? 3);
-  });
+  // Done = completed tasks, sorted by completedAt desc (newest first), then sortOrder
+  const doneTasks = tasks
+    .filter((t) => t.status === "done")
+    .sort((a, b) => {
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+      return new Date(b.completedAt ?? b.createdAt).getTime() - new Date(a.completedAt ?? a.createdAt).getTime();
+    });
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const makeHandleDragEnd = useCallback((subset: Task[]) => async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = subset.findIndex((t) => t.id === active.id);
+    const newIndex = subset.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(subset, oldIndex, newIndex);
+    // Merge reordered subset back into full tasks list
+    const reorderedIds = new Set(reordered.map((t) => t.id));
+    const other = tasks.filter((t) => !reorderedIds.has(t.id));
+    setTasks([...reordered, ...other]);
+    await fetch("/api/tasks/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds: reordered.map((t) => t.id) }),
+    });
+  }, [tasks]);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -1122,24 +1287,6 @@ export default function TasksPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Status filter */}
-            <div className="flex items-center gap-1">
-              {["all", "todo", "in_progress", "done"].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setFilterStatus(s)}
-                  className="text-[11px] px-2.5 py-1 rounded-lg capitalize"
-                  style={{
-                    background: filterStatus === s ? "var(--panel)" : "transparent",
-                    color: filterStatus === s ? "var(--ink)" : "var(--ink-3)",
-                    border: filterStatus === s ? "1px solid var(--line)" : "1px solid transparent",
-                  }}
-                >
-                  {s === "all" ? "All" : s === "in_progress" ? "In Progress" : s === "todo" ? "To Do" : "Done"}
-                </button>
-              ))}
-            </div>
-
             {selectedProjectId && (
               <button
                 onClick={() => setShowAddTask(true)}
@@ -1156,21 +1303,17 @@ export default function TasksPage() {
                 style={{ background: "var(--panel)", border: "1px solid #10b981", color: "var(--ink-2)" }}
               >
                 <Clock className="w-3.5 h-3.5" style={{ color: "var(--ink-3)" }} />
-                {selectedProject.totalSeconds > 0
-                  ? fmtProjectTime(selectedProject.totalSeconds)
-                  : "0m"}
+                {selectedProject.totalSeconds > 0 ? fmtProjectTime(selectedProject.totalSeconds) : "0m"}
               </div>
             )}
           </div>
         </div>
 
-        {/* Task list */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* Two-column task area */}
+        <style>{`.drag-handle-wrap:hover .drag-handle { opacity: 1 !important; }`}</style>
+        <div className="flex-1 overflow-hidden">
           {!selectedProjectId ? (
-            <div
-              className="flex flex-col items-center justify-center h-full text-center"
-              style={{ color: "var(--ink-3)" }}
-            >
+            <div className="flex flex-col items-center justify-center h-full text-center" style={{ color: "var(--ink-3)" }}>
               <Circle className="w-8 h-8 mb-3 opacity-30" />
               <p className="text-sm">Select a project from the sidebar</p>
             </div>
@@ -1178,58 +1321,92 @@ export default function TasksPage() {
             <div className="flex items-center justify-center h-32" style={{ color: "var(--ink-3)" }}>
               <Loader2 className="w-5 h-5 animate-spin" />
             </div>
-          ) : sortedTasks.length === 0 ? (
-            <div className="max-w-3xl">
-              {selectedProject && (
-                <ProjectDescriptionPanel
-                  project={selectedProject}
-                  onSaved={(notes) => {
-                    if (selectedProjectId !== null) {
-                      setProjectNotesOverride((prev) => ({ ...prev, [selectedProjectId]: notes }));
-                    }
-                  }}
-                />
-              )}
-              <div
-                className="flex flex-col items-center justify-center h-32 text-center"
-                style={{ color: "var(--ink-3)" }}
-              >
-                <p className="text-sm mb-3">
-                  {filterStatus === "all" ? "No tasks yet." : `No ${filterStatus === "in_progress" ? "in progress" : filterStatus} tasks.`}
-                </p>
-                {filterStatus === "all" && (
-                  <button
-                    onClick={() => setShowAddTask(true)}
-                    className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
-                    style={{ background: "#10b981", color: "#000" }}
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add First Task
-                  </button>
-                )}
-              </div>
-            </div>
           ) : (
-            <div className="flex flex-col gap-2 max-w-3xl">
-              {selectedProject && (
-                <ProjectDescriptionPanel
-                  project={selectedProject}
-                  onSaved={(notes) => {
-                    if (selectedProjectId !== null) {
-                      setProjectNotesOverride((prev) => ({ ...prev, [selectedProjectId]: notes }));
-                    }
-                  }}
-                />
-              )}
-              {sortedTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  onStatusToggle={handleStatusToggle}
-                  onExpand={handleExpand}
-                  expanded={expandedTaskId === task.id}
-                  onUpdate={handleUpdate}
-                />
-              ))}
+            <div className="flex h-full">
+              {/* ── Column 1: Active ──────────────────────────────── */}
+              <div className="flex flex-col flex-1 border-r overflow-hidden" style={{ borderColor: "var(--line)" }}>
+                <div className="flex items-center justify-between px-6 py-3 border-b" style={{ borderColor: "var(--line)" }}>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>
+                    To Do &amp; In Progress
+                    {activeTasks.length > 0 && <span className="ml-2 font-normal">{activeTasks.length}</span>}
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {selectedProject && (
+                    <ProjectDescriptionPanel
+                      project={selectedProject}
+                      onSaved={(notes) => {
+                        if (selectedProjectId !== null) setProjectNotesOverride((prev) => ({ ...prev, [selectedProjectId]: notes }));
+                      }}
+                    />
+                  )}
+                  {activeTasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-32 text-center" style={{ color: "var(--ink-3)" }}>
+                      <p className="text-sm mb-3">No active tasks.</p>
+                      <button
+                        onClick={() => setShowAddTask(true)}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
+                        style={{ background: "#10b981", color: "#000" }}
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add First Task
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeHandleDragEnd(activeTasks)}>
+                        <SortableContext items={activeTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                          {activeTasks.map((task) => (
+                            <div key={task.id} className="drag-handle-wrap" style={{ paddingLeft: 20, marginLeft: -20 }}>
+                              <SortableTaskRow
+                                task={task}
+                                onStatusToggle={handleStatusToggle}
+                                onExpand={handleExpand}
+                                expanded={expandedTaskId === task.id}
+                                onUpdate={handleUpdate}
+                              />
+                            </div>
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Column 2: Completed ───────────────────────────── */}
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-3 border-b" style={{ borderColor: "var(--line)" }}>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--ink-3)" }}>
+                    Completed
+                    {doneTasks.length > 0 && <span className="ml-2 font-normal">{doneTasks.length}</span>}
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {doneTasks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-32 text-center" style={{ color: "var(--ink-3)" }}>
+                      <p className="text-sm">No completed tasks yet.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeHandleDragEnd(doneTasks)}>
+                        <SortableContext items={doneTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                          {doneTasks.map((task) => (
+                            <div key={task.id} className="drag-handle-wrap" style={{ paddingLeft: 20, marginLeft: -20 }}>
+                              <SortableTaskRow
+                                task={task}
+                                onStatusToggle={handleStatusToggle}
+                                onExpand={handleExpand}
+                                expanded={expandedTaskId === task.id}
+                                onUpdate={handleUpdate}
+                              />
+                            </div>
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
