@@ -64,35 +64,63 @@ model DataStore {
 
 /// Task management — projects grouping tasks by client/personal
 model Project {
-  id         Int      @id @default(autoincrement())
+  id         Int             @id @default(autoincrement())
   name       String
   color      String?
-  clientName String?  @map("client_name")
+  clientName String?         @map("client_name")
   notes      String?
-  archived   Boolean  @default(false)
-  asanaGid   String?  @map("asana_gid")
-  createdAt  DateTime @default(now()) @map("created_at")
+  archived   Boolean         @default(false)
+  asanaGid   String?         @map("asana_gid")
+  createdAt  DateTime        @default(now()) @map("created_at")
   tasks      Task[]
+  clients    ClientProject[]
 
   @@map("projects")
 }
 
+/// Client portal users — each gets a password and sees only tasks
+model Client {
+  id           String          @id @default(cuid())
+  name         String
+  email        String?
+  passwordHash String
+  slug         String          @unique
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  tasks        Task[]
+  projects     ClientProject[]
+}
+
+/// Join table linking clients to the projects they can see
+model ClientProject {
+  clientId  String
+  projectId Int
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, projectId])
+  @@map("client_projects")
+}
+
 /// Individual tasks within a project
 model Task {
-  id          Int         @id @default(autoincrement())
-  projectId   Int         @map("project_id")
-  title       String
-  notes       String?
-  status      String      @default("todo")
-  dueDate     DateTime?   @map("due_date") @db.Date
-  assignee    String?
-  completedAt DateTime?   @map("completed_at")
-  asanaGid    String?     @map("asana_gid")
-  sortOrder   Int         @default(0) @map("sort_order")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-  project     Project     @relation(fields: [projectId], references: [id])
-  timeEntries TimeEntry[]
+  id            Int         @id @default(autoincrement())
+  projectId     Int         @map("project_id")
+  title         String
+  notes         String?
+  status        String      @default("todo")
+  dueDate       DateTime?   @map("due_date") @db.Date
+  assignee      String?
+  completedAt   DateTime?   @map("completed_at")
+  asanaGid      String?     @map("asana_gid")
+  sortOrder     Int         @default(0) @map("sort_order")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  clientId      String?
+  clientVisible Boolean     @default(false)
+  project       Project     @relation(fields: [projectId], references: [id])
+  client        Client?     @relation(fields: [clientId], references: [id])
+  timeEntries   TimeEntry[]
 
   @@index([projectId])
   @@index([status])

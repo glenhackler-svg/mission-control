@@ -40,6 +40,12 @@ interface TimeEntry {
   note: string | null;
 }
 
+interface Client {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface Task {
   id: number;
   projectId: number;
@@ -51,6 +57,8 @@ interface Task {
   completedAt: string | null;
   createdAt: string;
   sortOrder: number;
+  clientId: string | null;
+  clientVisible: boolean;
   timeEntries?: TimeEntry[];
 }
 
@@ -116,7 +124,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  todo:        "#6b7280",
+  todo:        "#ffffff",
   in_progress: "#f59e0b",
   done:        "#10b981",
 };
@@ -126,7 +134,7 @@ const STATUS_COLOR: Record<string, string> = {
 function StatusBadge({ status }: { status: string }) {
   return (
     <span
-      className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+      className="text-[11px] px-2 py-0.5 rounded-full font-bold"
       style={{ background: STATUS_COLOR[status] + "22", color: STATUS_COLOR[status] }}
     >
       {STATUS_LABEL[status] ?? status}
@@ -155,6 +163,7 @@ interface ProjectDescriptionPanelProps {
 }
 
 function ProjectDescriptionPanel({ project, onSaved }: ProjectDescriptionPanelProps) {
+  const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(project.notes ?? "");
   const [saving, setSaving] = useState(false);
@@ -168,6 +177,7 @@ function ProjectDescriptionPanel({ project, onSaved }: ProjectDescriptionPanelPr
 
   const startEditing = () => {
     setValue(project.notes ?? "");
+    setExpanded(true);
     setEditing(true);
     setTimeout(() => textareaRef.current?.focus(), 0);
   };
@@ -200,12 +210,25 @@ function ProjectDescriptionPanel({ project, onSaved }: ProjectDescriptionPanelPr
 
   return (
     <div
-      className="mb-4 rounded-xl px-4 py-3 relative"
-      style={{
-        background: "var(--panel)",
-        border: "1px solid var(--line)",
-      }}
+      className="mb-4 rounded-xl relative"
+      style={{ border: "1px solid var(--line)", background: "var(--panel)" }}
     >
+      {/* Collapsed header — always visible */}
+      <button
+        onClick={() => { setExpanded((v) => !v); setEditing(false); }}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left"
+      >
+        <span className="text-[12px] font-medium" style={{ color: "var(--ink-3)" }}>
+          {project.notes ? "Project Description" : "Add Project Description"}
+        </span>
+        <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+          {expanded ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {/* Expanded content */}
+      {expanded && (
+        <div className="px-4 pb-3">
       {editing ? (
         <>
           <textarea
@@ -250,6 +273,8 @@ function ProjectDescriptionPanel({ project, onSaved }: ProjectDescriptionPanelPr
           )}
         </button>
       )}
+        </div>
+      )}
       {savedFlash && (
         <span
           className="absolute right-3 top-3 text-[11px] px-2 py-0.5 rounded-full"
@@ -270,9 +295,11 @@ interface TaskRowProps {
   onExpand: (taskId: number) => void;
   expanded: boolean;
   onUpdate: () => void;
+  onDelete: (taskId: number) => void;
+  clients: Client[];
 }
 
-function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRowProps) {
+function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate, onDelete, clients }: TaskRowProps) {
   const [detail, setDetail] = useState<Task | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -406,7 +433,7 @@ function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRow
         {/* Meta */}
         <div className="flex items-center gap-2 flex-none">
           {task.assignee && (
-            <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>
+            <span className="text-[11px] font-medium" style={{ color: "#3b82f6" }}>
               {task.assignee}
             </span>
           )}
@@ -425,6 +452,18 @@ function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRow
             style={{ color: "var(--ink-3)" }}
           >
             {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            onClick={() => {
+              if (confirm(`Delete "${task.title}"? This cannot be undone.`)) {
+                onDelete(task.id);
+              }
+            }}
+            className="p-1 rounded hover:bg-[var(--bg)] transition-colors"
+            style={{ color: "#ef4444" }}
+            title="Delete task"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -773,6 +812,48 @@ function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRow
                 )}
               </div>
 
+              {/* Client assignment */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium" style={{ color: "var(--ink-2)" }}>Assign to Client</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="text-xs px-2 py-1.5 rounded-lg"
+                    style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)", minWidth: 160 }}
+                    value={task.clientId ?? ""}
+                    onChange={async (e) => {
+                      await fetch(`/api/tasks/${task.id}/assign`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ clientId: e.target.value || null }),
+                      });
+                      onUpdate();
+                    }}
+                  >
+                    <option value="">Unassigned</option>
+                    {clients.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: "var(--ink-2)" }}>
+                    <input
+                      type="checkbox"
+                      checked={task.clientVisible}
+                      onChange={async (e) => {
+                        await fetch(`/api/tasks/${task.id}/assign`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ clientId: task.clientId, clientVisible: e.target.checked }),
+                        });
+                        onUpdate();
+                      }}
+                    />
+                    Client visible
+                  </label>
+                </div>
+              </div>
+
               {/* Completion info */}
               {task.completedAt && (
                 <div className="text-[11px]" style={{ color: "var(--ink-3)" }}>
@@ -789,6 +870,7 @@ function TaskRow({ task, onStatusToggle, onExpand, expanded, onUpdate }: TaskRow
 
 // ─── Sortable Task Row wrapper ──────────────────────────────────────────────
 
+// Clients passed from main page
 function SortableTaskRow(props: TaskRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.task.id });
   return (
@@ -829,13 +911,14 @@ function SortableTaskRow(props: TaskRowProps) {
 
 interface AddTaskModalProps {
   projectId: number;
+  clients: Client[];
   onClose: () => void;
   onAdded: () => void;
 }
 
-function AddTaskModal({ projectId, onClose, onAdded }: AddTaskModalProps) {
+function AddTaskModal({ projectId, clients, onClose, onAdded }: AddTaskModalProps) {
   const [title, setTitle] = useState("");
-  const [assignee, setAssignee] = useState("");
+  const [clientId, setClientId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -852,7 +935,7 @@ function AddTaskModal({ projectId, onClose, onAdded }: AddTaskModalProps) {
         title: title.trim(),
         notes: notes || null,
         due_date: dueDate || null,
-        assignee: assignee || null,
+        client_id: clientId || null,
       }),
     });
     setSaving(false);
@@ -895,13 +978,17 @@ function AddTaskModal({ projectId, onClose, onAdded }: AddTaskModalProps) {
           onChange={(e) => setNotes(e.target.value)}
         />
         <div className="flex gap-3">
-          <input
+          <select
             className="text-sm px-3 py-2 rounded-lg flex-1"
-            style={{ background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
-            placeholder="Assignee"
-            value={assignee}
-            onChange={(e) => setAssignee(e.target.value)}
-          />
+            style={{ background: "var(--bg)", border: "1px solid var(--line)", color: clientId ? "var(--ink)" : "var(--ink-3)" }}
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+          >
+            <option value="">Assign to client…</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
           <input
             type="date"
             className="text-sm px-3 py-2 rounded-lg"
@@ -1063,6 +1150,7 @@ export default function TasksPage() {
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [projectNotesOverride, setProjectNotesOverride] = useState<Record<number, string | null>>({});
+  const [clients, setClients] = useState<Client[]>([]);
 
   const loadProjects = useCallback(async () => {
     const r = await fetch("/api/tasks/projects");
@@ -1081,6 +1169,7 @@ export default function TasksPage() {
 
   useEffect(() => {
     loadProjects();
+    fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients ?? []));
   }, [loadProjects]);
 
   useEffect(() => {
@@ -1119,6 +1208,11 @@ export default function TasksPage() {
     }
   };
 
+  const handleDelete = async (taskId: number) => {
+    await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+    handleUpdate();
+  };
+
   const selectedProjectRaw = projects.find((p) => p.id === selectedProjectId);
   const selectedProject = selectedProjectRaw
     ? {
@@ -1152,16 +1246,17 @@ export default function TasksPage() {
     const newIndex = subset.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(subset, oldIndex, newIndex);
-    // Merge reordered subset back into full tasks list
     const reorderedIds = new Set(reordered.map((t) => t.id));
     const other = tasks.filter((t) => !reorderedIds.has(t.id));
-    setTasks([...reordered, ...other]);
+    const merged = [...reordered, ...other];
+    // Save to DB first, then reload — avoids optimistic state fighting DnD animations
     await fetch("/api/tasks/reorder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds: reordered.map((t) => t.id) }),
+      body: JSON.stringify({ orderedIds: merged.map((t) => t.id) }),
     });
-  }, [tasks]);
+    if (selectedProjectId) loadTasks(selectedProjectId);
+  }, [tasks, selectedProjectId, loadTasks]);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -1363,6 +1458,8 @@ export default function TasksPage() {
                                 onExpand={handleExpand}
                                 expanded={expandedTaskId === task.id}
                                 onUpdate={handleUpdate}
+                                onDelete={handleDelete}
+                                clients={clients}
                               />
                             </div>
                           ))}
@@ -1398,6 +1495,8 @@ export default function TasksPage() {
                                 onExpand={handleExpand}
                                 expanded={expandedTaskId === task.id}
                                 onUpdate={handleUpdate}
+                                onDelete={handleDelete}
+                                clients={clients}
                               />
                             </div>
                           ))}
@@ -1416,6 +1515,7 @@ export default function TasksPage() {
       {showAddTask && selectedProjectId && (
         <AddTaskModal
           projectId={selectedProjectId}
+          clients={clients}
           onClose={() => setShowAddTask(false)}
           onAdded={handleUpdate}
         />

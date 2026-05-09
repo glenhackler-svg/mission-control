@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar, CheckSquare, Mail } from "lucide-react";
+import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar, CheckSquare, Mail, Users } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -12,6 +12,7 @@ const NAV = [
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/mail", label: "Mail", icon: Mail },
+  { href: "/admin/clients", label: "Clients", icon: Users },
 ];
 
 export function Sidebar() {

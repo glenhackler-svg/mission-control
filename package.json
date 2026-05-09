@@ -5,7 +5,7 @@
   "description": "A web dashboard template for running and monitoring your OpenClaw AI agents. Start here, customize, deploy.",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "rm -rf .next && prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
@@ -19,6 +19,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "^6.19.3",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
     "lucide-react": "^0.564.0",
     "next": "16.2.3",
     "node-fetch": "^3.3.2",

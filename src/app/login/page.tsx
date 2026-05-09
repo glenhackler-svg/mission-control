@@ -20,7 +20,9 @@ function LoginForm() {
     });
 
     if (res.ok) {
-      const from = searchParams.get("from") || "/";
+      const data = await res.json();
+      const defaultFrom = data.role === "client" ? "/client/tasks" : "/";
+      const from = searchParams.get("from") || defaultFrom;
       window.location.href = from;
     } else {
       setError("Wrong password. Try again.");

@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   env: {
     DASHBOARD_SESSION_SECRET: process.env.DASHBOARD_SESSION_SECRET,
     DASHBOARD_PASSWORD: process.env.DASHBOARD_PASSWORD,
+    AGENTMAIL_API_KEY: process.env.AGENTMAIL_API_KEY,
+    AGENTMAIL_FROM_INBOX: process.env.AGENTMAIL_FROM_INBOX,
   },
 };
 

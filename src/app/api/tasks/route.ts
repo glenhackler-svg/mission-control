@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { project_id, title, notes, due_date, assignee } = body || {};
+  const { project_id, title, notes, due_date, assignee, client_id } = body || {};
 
   if (!project_id || !title) {
     return NextResponse.json({ error: "project_id and title are required" }, { status: 400 });
@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
       dueDate: due_date ? new Date(due_date) : null,
       assignee: assignee ? String(assignee) : null,
       status: "todo",
+      // When a client is chosen at creation time, make the task visible immediately
+      ...(client_id ? { clientId: String(client_id), clientVisible: true } : {}),
     },
   });
 
