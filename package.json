@@ -5,7 +5,7 @@
   "description": "A web dashboard template for running and monitoring your OpenClaw AI agents. Start here, customize, deploy.",
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next && prisma generate && next build",
+    "build": "rm -rf .next && prisma generate && next build --webpack",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",

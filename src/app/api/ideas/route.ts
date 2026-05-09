@@ -24,8 +24,8 @@ function checkAuth(req: NextRequest): boolean {
 
 export async function GET() {
   const ideas = await prisma.idea.findMany({
-    orderBy: { timestamp: "desc" },
-    take: 100,
+    orderBy: [{ sortOrder: "asc" }, { timestamp: "desc" }],
+    take: 200,
   });
   return NextResponse.json({ ideas });
 }
