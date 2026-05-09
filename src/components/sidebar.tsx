@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar, CheckSquare, Mail, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar, CheckSquare, Mail, Users, LogOut } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
-  { href: "/missions", label: "Missions", icon: ListTodo },
+  // { href: "/missions", label: "Missions", icon: ListTodo }, // hidden — not wired up yet
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/mail", label: "Mail", icon: Mail },
@@ -17,6 +17,12 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
   return (
     <aside
       className="border-r border-[var(--line)] flex flex-col gap-1 p-4 sticky top-0 h-screen"
@@ -51,6 +57,15 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div className="mt-auto">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13.5px] w-full text-[var(--ink-3)] hover:bg-[var(--panel)] hover:text-[var(--ink)] transition-colors"
+        >
+          <LogOut className="w-4 h-4 flex-none" />
+          <span>Log out</span>
+        </button>
+      </div>
     </aside>
   );
 }

@@ -25,7 +25,7 @@ const PRICE = {
 // Map sessionKey prefixes → agent metadata
 const AGENTS = {
   "agent:main:main":            { id: "claw",            name: "Claw",            emoji: "🐾",  role: "CEO" },
-  "agent:cody:main":            { id: "cody",            name: "Cody",            emoji: "💻", role: "Coding" },
+  "agent:kodee:main":           { id: "kodee",           name: "Kodee",           emoji: "💻", role: "Coding" },
   "agent:einstein:main":        { id: "einstein",        name: "Einstein",        emoji: "💡", role: "Ideas" },
   "agent:scout:main":           { id: "scout",           name: "Scout",           emoji: "🔍", role: "Research" },
   "agent:michelangelo:main":    { id: "michelangelo",    name: "Michelangelo",    emoji: "🎨", role: "Design" },

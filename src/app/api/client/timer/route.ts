@@ -18,9 +18,10 @@ export async function GET() {
   // Scope to client's assigned projects only
   const clientProjects = await prisma.clientProject.findMany({
     where: { clientId: client.id },
-    select: { projectId: true },
+    include: { project: { select: { id: true, name: true } } },
   });
   const assignedProjectIds = clientProjects.map((cp) => cp.projectId);
+  const projectNames = clientProjects.map((cp) => cp.project.name);
 
   const entries = await prisma.timeEntry.findMany({
     where: { endedAt: { not: null }, task: { projectId: { in: assignedProjectIds } } },
@@ -53,5 +54,5 @@ export async function GET() {
     .filter((t) => t.totalSeconds > 0)
     .sort((a, b) => b.totalSeconds - a.totalSeconds);
 
-  return NextResponse.json({ summary: { totalSeconds, weekSeconds, monthSeconds, byTask } });
+  return NextResponse.json({ summary: { totalSeconds, weekSeconds, monthSeconds, byTask }, projectNames });
 }

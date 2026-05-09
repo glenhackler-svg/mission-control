@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // Fix: Next.js was inferring /Users/glenha as the workspace root due to a
+  // package-lock.json there. Pin it explicitly to this project directory.
+  outputFileTracingRoot: path.join(__dirname),
   reactStrictMode: true,
   allowedDevOrigins: ["mcdashboard.xenlerconsulting.com"],
   // Turbopack disabled — using webpack (Turbopack has client reference manifest bugs in Next.js 16)

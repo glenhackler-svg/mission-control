@@ -32,24 +32,35 @@ function fmtHoursShort(seconds: number): string {
 
 export default function ClientTimerPage() {
   const [summary, setSummary] = useState<TimerSummary | null>(null);
+  const [clientName, setClientName] = useState<string | null>(null);
+  const [projectNames, setProjectNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/client/timer")
-      .then((r) => r.json())
-      .then((d) => {
-        setSummary(d.summary ?? null);
-        setLoading(false);
-      });
+    Promise.all([
+      fetch("/api/client/timer").then((r) => r.json()),
+      fetch("/api/client/me").then((r) => r.json()),
+    ]).then(([timerData, meData]) => {
+      setSummary(timerData.summary ?? null);
+      setProjectNames(timerData.projectNames ?? []);
+      setClientName(meData.client?.name ?? null);
+      setLoading(false);
+    });
   }, []);
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Time Summary</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
-          Glen&apos;s total time logged — read only
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {projectNames.length > 0
+            ? <>{projectNames.join(", ")} <span style={{ color: "var(--ink-3)", fontWeight: 400 }}>— Time Summary</span></>
+            : "Time Summary"}
+        </h1>
+        {clientName && (
+          <p className="text-sm mt-1" style={{ color: "var(--ink-3)" }}>
+            Welcome back, {clientName}
+          </p>
+        )}
       </div>
 
       {loading ? (

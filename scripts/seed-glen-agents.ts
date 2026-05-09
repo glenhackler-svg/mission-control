@@ -21,8 +21,8 @@ const AGENTS = [
     currentTask: "Standing by",
   },
   {
-    id: "cody",
-    name: "Cody",
+    id: "kodee",
+    name: "Kodee",
     emoji: "💻",
     role: "Coding",
     status: "idle",
