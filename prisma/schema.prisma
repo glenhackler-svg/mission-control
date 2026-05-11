@@ -23,20 +23,44 @@ model AgentState {
   updatedAt      DateTime  @updatedAt
 }
 
-/// A unit of work assigned to an agent. Agents pick up pending missions,
-/// run them, and update status to "completed" or "failed".
+/// A multi-step goal assigned across one or more agents.
+/// Glen creates missions from the dashboard; agents execute steps and report back.
 model Mission {
-  id          String    @id @default(uuid())
-  agentId     String
+  id          String        @id @default(uuid())
   title       String
   description String
-  status      String    @default("pending")
-  priority    String    @default("medium")
+  status      String        @default("pending")   // pending | active | completed | failed | cancelled
+  priority    String        @default("medium")     // low | medium | high | urgent
+  agentId     String        // owner/creator agent (usually "claw")
+  currentStep Int           @default(0)
   result      String?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime      @default(now())
+  startedAt   DateTime?
   completedAt DateTime?
+  steps       MissionStep[]
 
+  @@index([status])
   @@index([agentId])
+}
+
+/// A single step within a Mission. Steps execute sequentially.
+/// Each step is assigned to a specific agent with a description/prompt.
+model MissionStep {
+  id          String    @id @default(uuid())
+  missionId   String
+  mission     Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  stepNumber  Int
+  title       String
+  description String    // Full prompt/instructions for the agent
+  agentId     String    // Which agent runs this step
+  status      String    @default("pending")   // pending | active | completed | failed | skipped
+  result      String?
+  errorDetail String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([missionId])
   @@index([status])
 }
 
@@ -48,8 +72,8 @@ model Idea {
   category    String?
   source      String?
   status      String?  @default("pending")
-  sortOrder   Int      @default(0)
   timestamp   DateTime @default(now())
+  sortOrder   Int      @default(0)
 
   @@index([category])
   @@index([status])
@@ -73,8 +97,8 @@ model Project {
   archived   Boolean         @default(false)
   asanaGid   String?         @map("asana_gid")
   createdAt  DateTime        @default(now()) @map("created_at")
-  tasks      Task[]
   clients    ClientProject[]
+  tasks      Task[]
 
   @@map("projects")
 }
@@ -88,8 +112,8 @@ model Client {
   slug         String          @unique
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-  tasks        Task[]
   projects     ClientProject[]
+  tasks        Task[]
 }
 
 /// Join table linking clients to the projects they can see
@@ -114,13 +138,13 @@ model Task {
   assignee      String?
   completedAt   DateTime?   @map("completed_at")
   asanaGid      String?     @map("asana_gid")
-  sortOrder     Int         @default(0) @map("sort_order")
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
+  sortOrder     Int         @default(0) @map("sort_order")
   clientId      String?
   clientVisible Boolean     @default(false)
-  project       Project     @relation(fields: [projectId], references: [id])
   client        Client?     @relation(fields: [clientId], references: [id])
+  project       Project     @relation(fields: [projectId], references: [id])
   timeEntries   TimeEntry[]
 
   @@index([projectId])
