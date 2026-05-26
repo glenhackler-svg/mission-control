@@ -49,3 +49,7 @@ next-env.d.ts
 !/data/example-agent-state.json
 !/data/.gitkeep
 .ms-token.json
+
+# deploy rollback dirs
+/.next-previous/
+/.next-rollback/
