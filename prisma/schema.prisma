@@ -79,6 +79,43 @@ model Idea {
   @@index([status])
 }
 
+/// Delegation records — when Claw spawns a subagent task, both sides report costs here.
+/// Enables full task cost rollup: parent planning tokens + child execution tokens.
+model TaskDelegation {
+  id                String   @id @default(uuid())
+  title             String
+  parentAgentId     String   // e.g. "claw"
+  childAgentId      String   // e.g. "kodee"
+  parentSessionCost Float    @default(0)
+  childSessionCost  Float    @default(0)
+  totalCost         Float    @default(0)  // maintained as parent + child
+  status            String   @default("in_progress") // in_progress | completed | failed
+  notes             String?
+  delegatedAt       DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([parentAgentId])
+  @@index([childAgentId])
+  @@map("task_delegations")
+}
+
+/// Monthly agent cost snapshot — one row per year+month.
+/// Written by the end-of-month cron job; used for the annual tally on the agents dashboard.
+model MonthlyAgentCost {
+  id              String   @id @default(uuid())
+  year            Int
+  month           Int      // 1–12
+  agentCost       Float    @default(0)
+  delegationCost  Float    @default(0)
+  totalCost       Float    @default(0)
+  snapshotAt      DateTime @default(now())
+
+  @@unique([year, month])
+  @@map("monthly_agent_costs")
+}
+
 /// Generic key-value store for agent-specific config and scratch data.
 /// Use this when you need to persist something simple without adding a model.
 model DataStore {
@@ -96,6 +133,7 @@ model Project {
   notes      String?
   archived   Boolean         @default(false)
   asanaGid   String?         @map("asana_gid")
+  sortOrder  Int             @default(0) @map("sort_order")
   createdAt  DateTime        @default(now()) @map("created_at")
   clients    ClientProject[]
   tasks      Task[]
@@ -150,6 +188,37 @@ model Task {
   @@index([projectId])
   @@index([status])
   @@map("tasks")
+}
+
+/// Lead gen outbound emails tracked by Scout
+model Lead {
+  id               Int       @id @default(autoincrement())
+  batchId          String
+  company          String
+  contactName      String?
+  email            String
+  website          String?
+  opportunityScore Int       @default(5)
+  city             String?
+  address          String?
+  phone            String?
+  subject          String
+  sentAt           DateTime
+  opened           Boolean   @default(false)
+  openedAt         DateTime?
+  openTrackingId   String    @unique
+  unsubscribed     Boolean   @default(false)
+  unsubscribedAt   DateTime?
+  booked           Boolean   @default(false)
+  bookedAt         DateTime?
+  bounced          Boolean   @default(false)
+  bouncedAt        DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+
+  @@index([batchId])
+  @@index([openTrackingId])
+  @@map("leads")
 }
 
 /// Time tracking entries per task

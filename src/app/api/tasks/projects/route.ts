@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const projects = await prisma.project.findMany({
     where: { archived: false },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
       tasks: {
         select: {
@@ -52,12 +52,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
+  // Place new project at the end
+  const maxOrder = await prisma.project.aggregate({ _max: { sortOrder: true } });
+  const nextOrder = (maxOrder._max.sortOrder ?? -1) + 1;
+
   const project = await prisma.project.create({
     data: {
       name: String(name),
       color: color ? String(color) : null,
       clientName: clientName ? String(clientName) : null,
       notes: notes ? String(notes) : null,
+      sortOrder: nextOrder,
     },
   });
 

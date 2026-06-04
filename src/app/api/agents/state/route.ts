@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     totalCost,
     currentTask,
     recentActivity,
+    delegationId,
+    delegationCostField,
   } = body || {};
 
   if (!id || !name) {
@@ -73,6 +75,27 @@ export async function POST(req: NextRequest) {
       ...(Array.isArray(recentActivity) && { recentActivity }),
     },
   });
+
+  // If a delegationId is provided, update the matching delegation cost
+  if (delegationId && Number.isFinite(totalCost)) {
+    try {
+      const delegation = await prisma.taskDelegation.findUnique({ where: { id: String(delegationId) } });
+      if (delegation) {
+        const field = delegationCostField === "parent" ? "parentSessionCost" : "childSessionCost";
+        const newParent = field === "parentSessionCost" ? Number(totalCost) : delegation.parentSessionCost;
+        const newChild = field === "childSessionCost" ? Number(totalCost) : delegation.childSessionCost;
+        await prisma.taskDelegation.update({
+          where: { id: String(delegationId) },
+          data: {
+            [field]: field === "parentSessionCost" ? newParent : newChild,
+            totalCost: newParent + newChild,
+          },
+        });
+      }
+    } catch {
+      // best-effort — don't fail the main agent state update
+    }
+  }
 
   return NextResponse.json({ agent: updated });
 }

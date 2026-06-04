@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar, CheckSquare, Mail, Users, LogOut, Clock } from "lucide-react";
+import { LayoutDashboard, Bot, ListTodo, Lightbulb, Calendar, CheckSquare, Mail, Users, LogOut, Clock, Share2, Megaphone } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/crons", label: "Crons", icon: Clock },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/projects", label: "Projects", icon: CheckSquare },
   { href: "/missions", label: "Missions", icon: ListTodo },
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
   { href: "/calendar", label: "Calendar", icon: Calendar },
   { href: "/mail", label: "Mail", icon: Mail },
+  { href: "/marketing", label: "Marketing", icon: Megaphone },
+  { href: "/delegations", label: "Delegations", icon: Share2 },
   { href: "/admin/clients", label: "Clients", icon: Users },
 ];
 

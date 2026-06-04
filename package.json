@@ -1,6 +1,6 @@
 {
   "name": "openclaw-mission-control",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": false,
   "description": "A web dashboard template for running and monitoring your OpenClaw AI agents. Start here, customize, deploy.",
   "scripts": {
